@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Lock, Mail, User, ShieldCheck, ArrowRight, CheckCircle2, AlertCircle, Database } from 'lucide-react';
+import { X, Lock, Mail, User, ShieldCheck, ArrowRight, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 
@@ -86,7 +86,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           if (authError) throw authError;
 
-          showToast('Account created in Supabase! Welcome to STACKED.', 50, 'success');
+          showToast('Account created! Welcome to STACKED.', 50, 'success');
         } else {
           // Supabase Auth SignIn
           const { data, error: authError } = await supabase.auth.signInWithPassword({
@@ -110,7 +110,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             }
           }
 
-          showToast('Signed in via Supabase Auth!', 25, 'success');
+          showToast('Signed in successfully!', 25, 'success');
         }
       }
 
@@ -118,7 +118,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       login(email, resolvedRole);
       onClose();
     } catch (err: any) {
-      console.warn('Supabase auth notice:', err?.message);
+      console.warn('Auth notice:', err?.message);
       if (err?.message?.includes('FetchError') || err?.message?.includes('placeholder')) {
         login(email, role);
         onClose();
@@ -158,8 +158,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {isLogin ? 'Sign In to STACKED' : 'Create Free Account'}
           </h2>
           <div className="flex items-center justify-center gap-1.5 mt-1 text-xs text-zinc-400">
-            <Database className="w-3 h-3 text-emerald-400" />
-            <span>Powered by Supabase Auth & PostgreSQL</span>
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>Master Money & Build Real Wealth</span>
           </div>
         </div>
 
@@ -328,7 +328,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {!isLogin && (
             <div>
               <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
-                Role (Auto-provisioned via Supabase Trigger)
+                Account Type
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -351,7 +351,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       : 'border-white/10 text-zinc-400 hover:border-white/20'
                   }`}
                 >
-                  🛡️ Admin / Educator
+                  👨‍🏫 Educator & Instructor
                 </button>
               </div>
             </div>
@@ -362,7 +362,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             disabled={!isEmailValid || !isPasswordValid || isLoading}
             className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-400 text-black font-extrabold text-sm hover:brightness-110 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-gold-glow flex items-center justify-center gap-2 mt-4"
           >
-            <span>{isLoading ? 'Authenticating with Supabase...' : isLogin ? 'Sign In' : 'Create Free Account'}</span>
+            <span>{isLoading ? 'Signing in...' : isLogin ? 'Sign In' : 'Create Free Account'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
@@ -370,7 +370,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* Demo Fast Login Buttons */}
         <div className="mt-6 pt-5 border-t border-white/10">
           <p className="text-[11px] font-bold text-center text-zinc-500 uppercase tracking-wider mb-2.5">
-            Instant Demo Logins (No DB Config Required)
+            Quick Demo Sign-In
           </p>
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -383,7 +383,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               onClick={() => handleDemo('admin')}
               className="py-2 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs font-bold text-amber-300 transition-colors flex items-center justify-center gap-1.5"
             >
-              <span>🛡️ Sarah (Admin)</span>
+              <span>👨‍🏫 Sarah (Instructor)</span>
             </button>
           </div>
         </div>

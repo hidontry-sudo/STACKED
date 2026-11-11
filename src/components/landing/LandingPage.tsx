@@ -18,7 +18,7 @@ import { useStore } from '@/store/useStore';
 import { AuthModal } from '../auth/AuthModal';
 
 export const LandingPage: React.FC = () => {
-  const { setCurrentTab, demoLogin } = useStore();
+  const { setCurrentTab } = useStore();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
@@ -42,13 +42,13 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
-            <button onClick={() => setCurrentTab('simulations')} className="hover:text-amber-400 transition-colors">
+            <button onClick={() => openAuth('login')} className="hover:text-amber-400 transition-colors">
               Simulation Sandbox
             </button>
-            <button onClick={() => setCurrentTab('lessons')} className="hover:text-amber-400 transition-colors">
+            <button onClick={() => openAuth('login')} className="hover:text-amber-400 transition-colors">
               Curriculum
             </button>
-            <button onClick={() => setCurrentTab('instructor')} className="hover:text-amber-400 transition-colors">
+            <button onClick={() => openAuth('login')} className="hover:text-amber-400 transition-colors">
               Educators
             </button>
           </div>
@@ -106,14 +106,11 @@ export const LandingPage: React.FC = () => {
               </button>
 
               <button
-                onClick={() => {
-                  demoLogin('student');
-                  setCurrentTab('dashboard');
-                }}
+                onClick={() => openAuth('login')}
                 className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-[#1e1c19] border border-amber-500/20 hover:border-amber-400/50 text-amber-300 font-bold text-sm sm:text-base transition-colors flex items-center justify-center gap-2"
               >
                 <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
-                <span>Instant Interactive Demo</span>
+                <span>Instant Sign In & Demo</span>
               </button>
             </div>
 
@@ -157,10 +154,7 @@ export const LandingPage: React.FC = () => {
                   <span>:)</span>
                 </div>
                 <button
-                  onClick={() => {
-                    demoLogin('student');
-                    setCurrentTab('dashboard');
-                  }}
+                  onClick={() => openAuth('login')}
                   className="px-4 py-1 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 text-xs font-bold mb-2 hover:bg-amber-400/30 transition-colors"
                 >
                   TAP TO CHAT
@@ -204,10 +198,7 @@ export const LandingPage: React.FC = () => {
 
               {/* Click to launch preview */}
               <button
-                onClick={() => {
-                  demoLogin('student');
-                  setCurrentTab('dashboard');
-                }}
+                onClick={() => openAuth('login')}
                 className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-amber-300 flex items-center justify-center gap-1.5 transition-colors"
               >
                 <span>Launch Interactive Prototype</span>
@@ -233,7 +224,7 @@ export const LandingPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Feature 1 */}
             <div 
-              onClick={() => { demoLogin('student'); setCurrentTab('simulations'); }}
+              onClick={() => openAuth('login')}
               className="p-6 rounded-3xl bg-[#17171c] border border-white/5 hover:border-amber-400/40 transition-all cursor-pointer group"
             >
               <div className="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 mb-4 group-hover:scale-110 transition-transform">
@@ -252,7 +243,7 @@ export const LandingPage: React.FC = () => {
 
             {/* Feature 2 */}
             <div 
-              onClick={() => { demoLogin('student'); setCurrentTab('lessons'); }}
+              onClick={() => openAuth('login')}
               className="p-6 rounded-3xl bg-[#17171c] border border-white/5 hover:border-amber-400/40 transition-all cursor-pointer group"
             >
               <div className="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 mb-4 group-hover:scale-110 transition-transform">
@@ -271,7 +262,7 @@ export const LandingPage: React.FC = () => {
 
             {/* Feature 3 */}
             <div 
-              onClick={() => { demoLogin('student'); setCurrentTab('lessons'); }}
+              onClick={() => openAuth('login')}
               className="p-6 rounded-3xl bg-[#17171c] border border-white/5 hover:border-amber-400/40 transition-all cursor-pointer group"
             >
               <div className="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 mb-4 group-hover:scale-110 transition-transform">
@@ -290,7 +281,7 @@ export const LandingPage: React.FC = () => {
 
             {/* Feature 4 */}
             <div 
-              onClick={() => { demoLogin('admin'); setCurrentTab('instructor'); }}
+              onClick={() => openAuth('login')}
               className="p-6 rounded-3xl bg-[#17171c] border border-white/5 hover:border-amber-400/40 transition-all cursor-pointer group"
             >
               <div className="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 mb-4 group-hover:scale-110 transition-transform">
@@ -317,26 +308,20 @@ export const LandingPage: React.FC = () => {
             Ready to Stack Your Wealth?
           </h2>
           <p className="text-zinc-400 text-sm sm:text-base mb-8">
-            Experience the interactive frontend prototype right now. Move sliders, complete quizzes, and generate AI tests.
+            Join thousands mastering financial freedom through gamified lessons, simulations, and AI feedback.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
             <button
-              onClick={() => {
-                demoLogin('student');
-                setCurrentTab('dashboard');
-              }}
+              onClick={() => openAuth('login')}
               className="px-8 py-3.5 rounded-2xl bg-amber-400 text-black font-extrabold text-sm hover:bg-amber-300 active:scale-95 transition-all shadow-gold-glow"
             >
-              Enter Student App (Alex)
+              Sign In to Your Account
             </button>
             <button
-              onClick={() => {
-                demoLogin('admin');
-                setCurrentTab('instructor');
-              }}
+              onClick={() => openAuth('register')}
               className="px-6 py-3.5 rounded-2xl bg-white/5 border border-white/10 hover:border-amber-400/50 text-white font-bold text-sm transition-colors"
             >
-              Enter Instructor Portal (Admin)
+              Create Free Account
             </button>
           </div>
         </div>

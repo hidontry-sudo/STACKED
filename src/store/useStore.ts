@@ -70,19 +70,19 @@ interface StoreState {
 }
 
 export const useStore = create<StoreState>((set, get) => ({
-  currentTab: 'dashboard',
+  currentTab: 'landing',
   setCurrentTab: (tab) => {
     // If student attempts to access instructor portal, guard it
     const { user, showToast } = get();
     if (tab === 'instructor' && user.role !== 'admin') {
-      showToast('Access Restricted: Only Admin users can access the Upload Portal.', undefined, 'info');
+      showToast('Access Restricted: Instructor portal is reserved for educator accounts.', undefined, 'info');
       set({ currentTab: 'dashboard' });
       return;
     }
     set({ currentTab: tab });
   },
 
-  isAuthenticated: true,
+  isAuthenticated: false,
   user: {
     ...initialUser,
     role: 'student',
@@ -147,8 +147,8 @@ export const useStore = create<StoreState>((set, get) => ({
       user: {
         ...state.user,
         email,
-        name: assignedRole === 'admin' ? 'Sarah Vance (Admin)' : 'Alex Rivera (Student)',
-        username: assignedRole === 'admin' ? '@admin_vance' : '@alex_stacks',
+        name: assignedRole === 'admin' ? 'Sarah Vance (Instructor)' : 'Alex Rivera (Student)',
+        username: assignedRole === 'admin' ? '@sarah_educator' : '@alex_stacks',
         role: assignedRole,
       },
     }));
@@ -175,11 +175,11 @@ export const useStore = create<StoreState>((set, get) => ({
       currentTab: assignedRole === 'admin' ? 'instructor' : 'dashboard',
       user: {
         ...state.user,
-        name: assignedRole === 'admin' ? 'Sarah Vance (Admin)' : 'Alex Rivera (Student)',
-        username: assignedRole === 'admin' ? '@admin_vance' : '@alex_stacks',
+        name: assignedRole === 'admin' ? 'Sarah Vance (Instructor)' : 'Alex Rivera (Student)',
+        username: assignedRole === 'admin' ? '@sarah_educator' : '@alex_stacks',
         role: assignedRole,
         level: assignedRole === 'admin' ? 10 : 4,
-        levelTitle: assignedRole === 'admin' ? 'Curriculum Admin' : 'Saver',
+        levelTitle: assignedRole === 'admin' ? 'Curriculum Director' : 'Saver',
       },
     }));
   },
@@ -189,9 +189,9 @@ export const useStore = create<StoreState>((set, get) => ({
       user: {
         ...state.user,
         role,
-        name: role === 'admin' ? 'Sarah Vance (Admin)' : 'Alex Rivera (Student)',
-        username: role === 'admin' ? '@admin_vance' : '@alex_stacks',
-        levelTitle: role === 'admin' ? 'Curriculum Admin' : 'Saver',
+        name: role === 'admin' ? 'Sarah Vance (Instructor)' : 'Alex Rivera (Student)',
+        username: role === 'admin' ? '@sarah_educator' : '@alex_stacks',
+        levelTitle: role === 'admin' ? 'Curriculum Director' : 'Saver',
       },
       currentTab: role === 'admin' ? state.currentTab : state.currentTab === 'instructor' ? 'dashboard' : state.currentTab,
     }));
@@ -277,9 +277,10 @@ export const useStore = create<StoreState>((set, get) => ({
     const { lessons, addPoints, showToast } = get();
     set({
       lessons: [newLesson, ...lessons],
+      activeLessonId: newLesson.id,
     });
     addPoints(250, 'New Lesson Curriculum Published!');
-    showToast('Lesson published to students successfully!', 250, 'award');
+    showToast(`"${newLesson.title}" published to student curriculum!`, 250, 'award');
   },
 
   // Simulation
