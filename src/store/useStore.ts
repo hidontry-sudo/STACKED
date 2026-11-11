@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AppTab, UserProfile, Lesson, SimulationState, DailyTask } from '../types';
+import { AppTab, UserProfile, Lesson, SimulationState, DailyTask, Currency } from '../types';
 import { initialUser, initialSimulation, mockLessons, mockDailyTasks } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 
@@ -18,6 +18,11 @@ interface MintMessage {
 }
 
 interface StoreState {
+  // Localization & Currency
+  currency: Currency;
+  setCurrency: (currency: Currency) => void;
+  toggleCurrency: () => void;
+
   // Navigation & Auth
   currentTab: AppTab;
   setCurrentTab: (tab: AppTab) => void;
@@ -43,6 +48,8 @@ interface StoreState {
   addInstructorLesson: (newLesson: Lesson) => void;
 
   // Simulation Engine State
+  activeScenarioId: string;
+  setActiveScenarioId: (id: string) => void;
   simulation: SimulationState;
   updateMonthlyIncome: (income: number) => void;
   updateIncomeSourceAmount: (id: string, amount: number) => void;
@@ -59,9 +66,10 @@ interface StoreState {
 
   // MINT AI Companion
   isMintOpen: boolean;
+  isMintThinking: boolean;
   toggleMint: (open?: boolean) => void;
   mintMessages: MintMessage[];
-  sendMintMessage: (userText: string) => void;
+  sendMintMessage: (userText: string) => Promise<void>;
 
   // Toast Notification
   toast: ToastNotification | null;
@@ -70,6 +78,11 @@ interface StoreState {
 }
 
 export const useStore = create<StoreState>((set, get) => ({
+  // Localization & Currency
+  currency: 'USD',
+  setCurrency: (currency) => set({ currency }),
+  toggleCurrency: () => set((state) => ({ currency: state.currency === 'USD' ? 'IDR' : 'USD' })),
+
   currentTab: 'landing',
   setCurrentTab: (tab) => {
     // If student attempts to access instructor portal, guard it
@@ -284,6 +297,8 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   // Simulation
+  activeScenarioId: 'personal-wealth',
+  setActiveScenarioId: (id) => set({ activeScenarioId: id }),
   simulation: initialSimulation,
   updateMonthlyIncome: (income) => {
     set((state) => ({
@@ -373,6 +388,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
   // MINT AI Coach
   isMintOpen: false,
+  isMintThinking: false,
   toggleMint: (open) => {
     set((state) => ({
       isMintOpen: open !== undefined ? open : !state.isMintOpen,
@@ -388,7 +404,10 @@ export const useStore = create<StoreState>((set, get) => ({
     },
   ],
 
-  sendMintMessage: (userText) => {
+  sendMintMessage: async (userText: string) => {
+    const { user, currency, mintMessages } = get();
+    const simulatedWealth = user.spendingCurrent + user.savingsCurrent + user.investCurrent;
+
     const userMsg: MintMessage = {
       id: `usr-${Date.now()}`,
       sender: 'user',
@@ -396,24 +415,73 @@ export const useStore = create<StoreState>((set, get) => ({
       time: 'Just now',
     };
 
-    set((state) => ({
-      mintMessages: [...state.mintMessages, userMsg],
-    }));
+    set({
+      mintMessages: [...mintMessages, userMsg],
+      isMintThinking: true,
+    });
 
-    setTimeout(() => {
-      let botReply = "That's a fantastic financial question! Consistent habits beat timing every time.";
+    try {
+      // Pass mocked Simulated Wealth and Level into the chat context
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userText,
+          history: mintMessages.slice(-6).map((m) => ({
+            sender: m.sender,
+            text: m.text,
+          })),
+          userContext: {
+            simulatedWealth,
+            level: user.level,
+            levelTitle: user.levelTitle,
+            currency,
+            streak: user.streak,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Chat API responded with status ${res.status}`);
+      }
+
+      const data = await res.json();
+      const replyText = data.reply || "That's a fantastic financial question! Consistent habits beat timing every time.";
+
+      const mintReply: MintMessage = {
+        id: `mint-${Date.now()}`,
+        sender: 'mint',
+        text: replyText,
+        time: 'Just now',
+      };
+
+      set((state) => ({
+        mintMessages: [...state.mintMessages, mintReply],
+        isMintThinking: false,
+      }));
+    } catch (err) {
+      console.warn('Chat API fetch encountered error, using local fallback:', err);
+      // Resilient local fallback incorporating user game state
+      const wealthLabel =
+        currency === 'IDR'
+          ? `Rp ${(simulatedWealth * 15000).toLocaleString('id-ID')}`
+          : `$${simulatedWealth.toLocaleString()}`;
+
+      let botReply = `At Level ${user.level} (${user.levelTitle}) with ${wealthLabel} in simulated wealth, taking control of your financial game plan is how you reach Level 5. What specific goals or concerns are top of mind right now?`;
+
       const lower = userText.toLowerCase();
-
       if (lower.includes('apr') || lower.includes('credit')) {
-        botReply = "APR is the Annual Percentage Rate! If you pay your credit card balance in full every month before the due date, you pay exactly 0% interest and build an 800+ credit score effortlessly.";
+        botReply = `APR is the Annual Percentage Rate! If you pay your credit card statement in full before the due date, you pay exactly 0% interest while building an 800+ credit score. At Level ${user.level}, managing credit utilization below 10% is the secret multiplier. Have you checked your current utilization?`;
       } else if (lower.includes('50/30/20') || lower.includes('budget') || lower.includes('allocate')) {
-        botReply = "The 50/30/20 rule splits your take-home pay: 50% for Needs (rent, utilities, food), 30% for Wants (fun, dining out), and 20% strictly for Savings & Investments!";
-      } else if (lower.includes('compound') || lower.includes('interest') || lower.includes('invest')) {
-        botReply = "Compound interest is exponential math in action! At an 8.5% annual return, $200 invested monthly grows into ~$35,000 in 10 years and over $185,000 in 25 years.";
-      } else if (lower.includes('roth') || lower.includes('tax')) {
-        botReply = "A Roth IRA is funded with after-tax money. That means every single penny of capital gains and dividends you earn over the next 40 years is 100% tax-free!";
-      } else if (lower.includes('emergency')) {
-        botReply = "Aim for 3 to 6 months of basic living expenses in a High-Yield Savings Account (HYSA) before making aggressive speculative investments.";
+        botReply = `The 50/30/20 rule splits your take-home pay: 50% for Needs, 30% for Wants, and 20% strictly for Savings & Investments. With your ${wealthLabel} baseline, sticking to this split ensures you consistently stack wealth without lifestyle creep. How does your current spending split feel?`;
+      } else if (lower.includes('freelance') || lower.includes('gig')) {
+        botReply = `For freelance and irregular income, set aside 25-30% immediately for quarterly estimated taxes, and keep a 3-month slush buffer to smooth out slow quarters. Would you like to run the Freelance Budgeting simulation scenario to test your numbers?`;
+      } else if (lower.includes('business') || lower.includes('startup')) {
+        botReply = `Starting a business requires balancing inventory and marketing! Never blow all your capital on stock before knowing your customer acquisition cost. Have you checked our Small Business Setup simulation scenario?`;
+      } else if (lower.includes('crisis') || lower.includes('emergency')) {
+        botReply = `In a crisis, immediately cut discretionary wants and calculate your survival runway. Even a modest part-time gig income can double how long your emergency cash lasts. How many months of emergency cushion do you currently have?`;
+      } else if (lower.includes('compound') || lower.includes('invest')) {
+        botReply = `Compound interest is exponential math! At an 8.5% annual return, regular investments compound your current ${wealthLabel} into serious generational wealth. What's your target investing horizon?`;
       }
 
       const mintReply: MintMessage = {
@@ -425,8 +493,9 @@ export const useStore = create<StoreState>((set, get) => ({
 
       set((state) => ({
         mintMessages: [...state.mintMessages, mintReply],
+        isMintThinking: false,
       }));
-    }, 700);
+    }
   },
 
   toast: null,

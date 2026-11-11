@@ -139,3 +139,131 @@ export async function generateQuizWithLlama3(
     },
   ];
 }
+
+export interface MintChatContext {
+  simulatedWealth?: number;
+  level?: number;
+  levelTitle?: string;
+  currency?: 'USD' | 'IDR';
+  streak?: number;
+}
+
+export function buildMintSystemPrompt(userContext?: MintChatContext): string {
+  const currencyStr = userContext?.currency || 'USD';
+  const wealthStr =
+    userContext?.simulatedWealth !== undefined
+      ? currencyStr === 'IDR'
+        ? `Rp ${(userContext.simulatedWealth * 15000).toLocaleString('id-ID')}`
+        : `$${userContext.simulatedWealth.toLocaleString()}`
+      : '$1,050';
+
+  const levelStr = userContext?.level
+    ? `Level ${userContext.level} (${userContext.levelTitle || 'Saver'})`
+    : 'Level 4 (Saver)';
+
+  return `You are MINT, a friendly, encouraging, and highly flexible personal financial advisor and wealth coach inside the STACKED gamified financial platform.
+
+USER GAME STATE:
+- Current Player Level: ${levelStr}
+- Mocked Simulated Wealth: ${wealthStr} (${currencyStr})
+${userContext?.streak ? `- Current Daily Streak: ${userContext.streak} days` : ''}
+
+CORE ADVISORY PHILOSOPHY:
+1. Highly Flexible & Conversational: Do NOT follow rigid scripts, mechanical bullet templates, or cookie-cutter formulas. Speak naturally, empathetically, and adapt directly to the nuances of what the user is asking.
+2. Personalized & Context-Aware: Connect your guidance directly to the user's current game state (${levelStr}, Simulated Wealth: ${wealthStr}). Acknowledge their progress (e.g., advancing from Saver to Investor, optimizing emergency cash buffers, or balancing side gigs).
+3. Encourage Open-Ended Exploration: Actively invite open-ended questions about their life goals, mindset around spending vs. investing, career moves, freelancing, credit scores, debt reduction, or starting a business. Proactively ask an engaging, thought-provoking follow-up question.
+4. Currency & Practical Financial Literacy: Respect their currency preference (${currencyStr}). If they mention IDR or Indonesian financial realities (e.g. SBN, reksadana, emergency funds in rupiah), incorporate practical local insights naturally alongside global financial literacy principles.
+5. Action-Oriented & Clear: Keep advice punchy, jargon-free, uplifting, and realistic. Keep responses concise (typically 2-3 focused paragraphs or conversational bites), never overwhelming the user with walls of text.`;
+}
+
+/**
+ * Chat with MINT using Groq Llama 3 with customized financial advisor system prompt
+ */
+export async function chatWithMintAI(
+  userMessage: string,
+  history: Array<{ sender: 'mint' | 'user'; text: string }> = [],
+  userContext?: MintChatContext
+): Promise<string> {
+  const groq = getGroqClient();
+  const systemPrompt = buildMintSystemPrompt(userContext);
+
+  if (groq) {
+    try {
+      // Format chat history for Llama 3
+      const formattedMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+        { role: 'system', content: systemPrompt },
+      ];
+
+      // Add last few messages for continuity
+      const recentHistory = history.slice(-6);
+      for (const msg of recentHistory) {
+        formattedMessages.push({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.text,
+        });
+      }
+
+      // Add current message
+      formattedMessages.push({
+        role: 'user',
+        content: userMessage,
+      });
+
+      const response = await groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        messages: formattedMessages,
+        temperature: 0.7,
+        max_tokens: 500,
+      });
+
+      const reply = response.choices[0]?.message?.content?.trim();
+      if (reply) {
+        return reply;
+      }
+    } catch (error: any) {
+      console.warn('Primary Groq Llama 3.3 call failed, attempting fallback model:', error?.message);
+      try {
+        const fallbackResponse = await groq.chat.completions.create({
+          model: 'llama-3.1-8b-instant',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage },
+          ],
+          temperature: 0.7,
+          max_tokens: 450,
+        });
+        const fallbackReply = fallbackResponse.choices[0]?.message?.content?.trim();
+        if (fallbackReply) return fallbackReply;
+      } catch (fallbackError: any) {
+        console.warn('Fallback Groq model also failed:', fallbackError?.message);
+      }
+    }
+  }
+
+  // Resilient contextual fallback if Groq API is offline or key quota exhausted
+  const currencyStr = userContext?.currency || 'USD';
+  const wealthStr =
+    userContext?.simulatedWealth !== undefined
+      ? currencyStr === 'IDR'
+        ? `Rp ${(userContext.simulatedWealth * 15000).toLocaleString('id-ID')}`
+        : `$${userContext.simulatedWealth.toLocaleString()}`
+      : '$1,050';
+  const levelStr = userContext?.level ? `Level ${userContext.level}` : 'Level 4';
+
+  const lower = userMessage.toLowerCase();
+  if (lower.includes('debt') || lower.includes('avalanche') || lower.includes('snowball')) {
+    return `That's a pivotal question at ${levelStr}! When managing debt with ${wealthStr} in simulated wealth, you have two proven paths: the Avalanche method (paying highest APR first to mathematically save money) vs. the Snowball method (clearing smallest balances first for psychological momentum). Which one sounds more motivating for your current mindset?`;
+  }
+  if (lower.includes('freelance') || lower.includes('variable') || lower.includes('gig')) {
+    return `Freelance cash flow is all about smoothing out the rollercoaster! With your current ${wealthStr} cushion, I recommend locking in 25-30% immediately into a separate tax holding bucket, and building a 3-month "dry-month buffer". How unpredictable has your income been recently?`;
+  }
+  if (lower.includes('business') || lower.includes('startup') || lower.includes('inventory')) {
+    return `Exciting move! In our Small Business Setup scenario, the classic mistake is overspending on inventory before validating customer acquisition. At ${levelStr}, balancing inventory and marketing gives you staying power. What type of venture are you exploring launching?`;
+  }
+  if (lower.includes('invest') || lower.includes('index') || lower.includes('compound') || lower.includes('stock')) {
+    return `At ${levelStr}, compound interest is your ultimate wealth engine! Putting even 20% of your cash flow into low-cost broad index funds compounds exponentially. At an 8.5% annual average, consistent monthly deposits turn your current ${wealthStr} foundation into serious long-term freedom. What timeline are you targeting for your main financial goals?`;
+  }
+
+  return `That's a thoughtful question! Looking at your game state (${levelStr}, Simulated Wealth: ${wealthStr}), you're building solid financial momentum. The key is staying consistent with your allocations and testing different scenarios. What specific outcome are you hoping to achieve next with your money?`;
+}
+

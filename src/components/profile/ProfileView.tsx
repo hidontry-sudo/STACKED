@@ -16,9 +16,10 @@ import {
   Share2,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
+import { formatCurrency } from '@/lib/formatters';
 
 export const ProfileView: React.FC = () => {
-  const { user, setCurrentTab } = useStore();
+  const { user, setCurrentTab, currency } = useStore();
 
   const growthStages = [
     { level: 1, title: 'Spender', xp: 0, unlocked: true, icon: '🌱' },
@@ -80,8 +81,8 @@ export const ProfileView: React.FC = () => {
             <span className="text-[10px] font-black uppercase tracking-wider">TOTAL SAVINGS</span>
             <TrendingUp className="w-4 h-4 text-amber-400" />
           </div>
-          <p className="text-2xl font-black text-white">${user.spendingCurrent + user.savingsCurrent + user.investCurrent}</p>
-          <p className="text-[10px] text-amber-400 font-bold">+${user.savedThisMonth} this week</p>
+          <p className="text-2xl font-black text-white">{formatCurrency(user.spendingCurrent + user.savingsCurrent + user.investCurrent, currency)}</p>
+          <p className="text-[10px] text-amber-400 font-bold">+{formatCurrency(user.savedThisMonth, currency)} this week</p>
         </div>
 
         <div className="p-5 rounded-3xl bg-[#161619] border border-white/5 space-y-1">

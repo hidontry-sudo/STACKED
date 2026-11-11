@@ -5,7 +5,7 @@ import { Flame, Sparkles, Trophy, Bot, LogOut, ChevronDown, UserCheck, Graduatio
 import { useStore } from '@/store/useStore';
 
 export const Header: React.FC = () => {
-  const { user, currentTab, setCurrentTab, logout, toggleMint, demoLogin } = useStore();
+  const { user, currentTab, setCurrentTab, logout, toggleMint, demoLogin, currency, setCurrency } = useStore();
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-white/[0.08] bg-[#0c0c0e]/90 backdrop-blur-md px-4 sm:px-6 py-3">
@@ -60,6 +60,34 @@ export const Header: React.FC = () => {
             <span className="text-xs font-semibold text-zinc-200">
               Lvl {user.level} · {user.levelTitle}
             </span>
+          </div>
+
+          {/* Currency Localization Switcher (USD / IDR) */}
+          <div className="flex items-center bg-[#151518] p-0.5 rounded-full border border-amber-500/25 shadow-inner">
+            <button
+              type="button"
+              onClick={() => setCurrency('USD')}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-black tracking-wide transition-all ${
+                currency === 'USD'
+                  ? 'bg-gradient-to-r from-amber-400 to-yellow-300 text-black shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+              title="USD Currency ($)"
+            >
+              $ USD
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrency('IDR')}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-black tracking-wide transition-all ${
+                currency === 'IDR'
+                  ? 'bg-gradient-to-r from-amber-400 to-yellow-300 text-black shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+              title="Indonesian Rupiah (Rp)"
+            >
+              Rp IDR
+            </button>
           </div>
 
           {/* MINT Mascot AI Quick Launcher */}

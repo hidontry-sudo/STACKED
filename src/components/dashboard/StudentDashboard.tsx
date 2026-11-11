@@ -28,6 +28,9 @@ import {
 } from 'recharts';
 import { useStore } from '@/store/useStore';
 import { mockWealthHistory } from '@/data/mockData';
+import { formatCurrency, formatCurrencyCompact } from '@/lib/formatters';
+import { DAILY_TASKS_POOL } from '@/data/dailyTasksPool';
+import { getDailyTasksForDate } from '@/lib/dailyTasks';
 
 export const StudentDashboard: React.FC = () => {
   const {
@@ -39,6 +42,7 @@ export const StudentDashboard: React.FC = () => {
     setCurrentTab,
     toggleMint,
     addPoints,
+    currency,
   } = useStore();
 
   const [mounted, setMounted] = useState(false);
@@ -49,6 +53,18 @@ export const StudentDashboard: React.FC = () => {
 
   useEffect(() => {
     setMounted(true);
+    // Client-side date-seeded random task selector ensures tasks change every 24h but don't re-roll on tab switches
+    const todayTasks = getDailyTasksForDate(DAILY_TASKS_POOL, new Date(), 3);
+    const currentTaskIds = dailyTasks.map((t) => t.id).sort().join(',');
+    const todayTaskIds = todayTasks.map((t) => t.id).sort().join(',');
+
+    if (currentTaskIds !== todayTaskIds) {
+      const synced = todayTasks.map((tt) => {
+        const found = dailyTasks.find((d) => d.id === tt.id);
+        return found ? { ...tt, completed: found.completed } : tt;
+      });
+      useStore.setState({ dailyTasks: synced });
+    }
   }, []);
 
   const totalMoney = user.spendingCurrent + user.savingsCurrent + user.investCurrent;
@@ -173,11 +189,11 @@ export const StudentDashboard: React.FC = () => {
             <DollarSign className="w-5 h-5 opacity-70" />
           </div>
           <div className="my-2">
-            <p className="text-3xl font-black tracking-tight">${user.savedThisMonth}</p>
+            <p className="text-3xl font-black tracking-tight">{formatCurrency(user.savedThisMonth, currency)}</p>
             <p className="text-xs font-bold opacity-80 mt-0.5">this month</p>
           </div>
           <div className="text-[10px] font-bold bg-black/15 px-2.5 py-1 rounded-full w-fit">
-            +$184 this week
+            +{formatCurrency(184, currency)} this week
           </div>
         </div>
 
@@ -244,7 +260,7 @@ export const StudentDashboard: React.FC = () => {
               YOUR MONEY RIGHT NOW
             </p>
             <p className="text-2xl font-black text-white tracking-tight mt-0.5">
-              ${totalMoney.toLocaleString()}
+              {formatCurrency(totalMoney, currency)}
             </p>
           </div>
           <button
@@ -261,17 +277,17 @@ export const StudentDashboard: React.FC = () => {
           <div
             style={{ width: `${spendingPct}%` }}
             className="h-full bg-amber-700/80 rounded-l-full transition-all"
-            title={`Spending: $${user.spendingCurrent}`}
+            title={`Spending: ${formatCurrency(user.spendingCurrent, currency)}`}
           />
           <div
             style={{ width: `${savingsPct}%` }}
             className="h-full bg-amber-400 transition-all"
-            title={`Savings: $${user.savingsCurrent}`}
+            title={`Savings: ${formatCurrency(user.savingsCurrent, currency)}`}
           />
           <div
             style={{ width: `${investPct}%` }}
             className="h-full bg-yellow-200 rounded-r-full transition-all"
-            title={`Invest: $${user.investCurrent}`}
+            title={`Invest: ${formatCurrency(user.investCurrent, currency)}`}
           />
         </div>
 
@@ -281,7 +297,7 @@ export const StudentDashboard: React.FC = () => {
             <span className="text-[10px] font-extrabold text-zinc-400 uppercase flex items-center justify-center gap-1">
               <span>💳</span> SPENDING
             </span>
-            <p className="text-lg font-black text-white mt-1">${user.spendingCurrent}</p>
+            <p className="text-lg font-black text-white mt-1">{formatCurrency(user.spendingCurrent, currency)}</p>
             <p className="text-[10px] text-zinc-500 font-medium">{spendingPct}% allocation</p>
           </div>
 
@@ -289,7 +305,7 @@ export const StudentDashboard: React.FC = () => {
             <span className="text-[10px] font-extrabold text-amber-400 uppercase flex items-center justify-center gap-1">
               <span>🐖</span> SAVINGS
             </span>
-            <p className="text-lg font-black text-amber-300 mt-1">${user.savingsCurrent}</p>
+            <p className="text-lg font-black text-amber-300 mt-1">{formatCurrency(user.savingsCurrent, currency)}</p>
             <p className="text-[10px] text-zinc-500 font-medium">{savingsPct}% allocation</p>
           </div>
 
@@ -297,7 +313,7 @@ export const StudentDashboard: React.FC = () => {
             <span className="text-[10px] font-extrabold text-yellow-200 uppercase flex items-center justify-center gap-1">
               <span>📈</span> INVEST
             </span>
-            <p className="text-lg font-black text-yellow-200 mt-1">${user.investCurrent}</p>
+            <p className="text-lg font-black text-yellow-200 mt-1">{formatCurrency(user.investCurrent, currency)}</p>
             <p className="text-[10px] text-zinc-500 font-medium">{investPct}% allocation</p>
           </div>
         </div>
@@ -368,7 +384,7 @@ export const StudentDashboard: React.FC = () => {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#26262b" vertical={false} />
                 <XAxis dataKey="month" stroke="#71717a" fontSize={11} tickLine={false} />
-                <YAxis stroke="#71717a" fontSize={11} tickLine={false} tickFormatter={(val) => `$${val}`} />
+                <YAxis stroke="#71717a" fontSize={11} tickLine={false} tickFormatter={(val) => formatCurrencyCompact(val, currency)} />
                 <Tooltip
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
@@ -376,11 +392,11 @@ export const StudentDashboard: React.FC = () => {
                         <div className="p-3 bg-[#1e1e24] border border-amber-400/40 rounded-xl shadow-xl text-xs">
                           <p className="font-extrabold text-white mb-1.5">{label}</p>
                           <p className="text-amber-400 font-bold">
-                            With STACKED: ${payload[0]?.value?.toLocaleString()}
+                            With STACKED: {formatCurrency(payload[0]?.value as number, currency)}
                           </p>
                           {payload[1] && (
                             <p className="text-zinc-400">
-                              Without STACKED: ${payload[1]?.value?.toLocaleString()}
+                              Without STACKED: {formatCurrency(payload[1]?.value as number, currency)}
                             </p>
                           )}
                         </div>
@@ -431,7 +447,7 @@ export const StudentDashboard: React.FC = () => {
             </span>
           </div>
           <span className="text-amber-300 font-semibold mt-1 sm:mt-0">
-            +$1,570 projected delta by May
+            +{formatCurrency(1570, currency)} projected delta by May
           </span>
         </div>
       </div>

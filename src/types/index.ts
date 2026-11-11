@@ -1,5 +1,7 @@
 export type AppTab = 'landing' | 'dashboard' | 'simulations' | 'lessons' | 'instructor' | 'profile';
 
+export type Currency = 'USD' | 'IDR';
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -87,6 +89,30 @@ export interface SimulationState {
   annualReturnRate: number; // e.g. 8%
   projectionYears: number; // e.g. 10
   savingsGoals: SavingsGoal[];
+}
+
+export interface SimulationSliderConfig {
+  key: string;
+  label: string;
+  description: string;
+  min: number;
+  max: number;
+  step: number;
+  unit: 'percent' | 'currency';
+  color: string;
+  badge?: string;
+}
+
+export interface SimulationScenario {
+  id: string;
+  title: string;
+  category: string;
+  badge: string;
+  description: string;
+  icon: string;
+  defaultCapital: number;
+  sliders: SimulationSliderConfig[];
+  defaultValues: Record<string, number>;
 }
 
 export interface DailyTask {
