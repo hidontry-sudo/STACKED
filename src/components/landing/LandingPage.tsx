@@ -290,7 +290,7 @@ export const LandingPage: React.FC = () => {
 
             {/* Feature 4 */}
             <div 
-              onClick={() => { demoLogin('instructor'); setCurrentTab('instructor'); }}
+              onClick={() => { demoLogin('admin'); setCurrentTab('instructor'); }}
               className="p-6 rounded-3xl bg-[#17171c] border border-white/5 hover:border-amber-400/40 transition-all cursor-pointer group"
             >
               <div className="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 mb-4 group-hover:scale-110 transition-transform">
@@ -331,12 +331,12 @@ export const LandingPage: React.FC = () => {
             </button>
             <button
               onClick={() => {
-                demoLogin('instructor');
+                demoLogin('admin');
                 setCurrentTab('instructor');
               }}
               className="px-6 py-3.5 rounded-2xl bg-white/5 border border-white/10 hover:border-amber-400/50 text-white font-bold text-sm transition-colors"
             >
-              Enter Instructor Portal
+              Enter Instructor Portal (Admin)
             </button>
           </div>
         </div>

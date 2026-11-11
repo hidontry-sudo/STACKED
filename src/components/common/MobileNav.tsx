@@ -6,13 +6,15 @@ import { useStore } from '@/store/useStore';
 import { AppTab } from '@/types';
 
 export const MobileNav: React.FC = () => {
-  const { currentTab, setCurrentTab } = useStore();
+  const { currentTab, setCurrentTab, user } = useStore();
 
   const navItems = [
     { id: 'dashboard' as AppTab, icon: Home, label: 'Home' },
     { id: 'lessons' as AppTab, icon: BookOpen, label: 'Lessons' },
     { id: 'simulations' as AppTab, icon: Wallet, label: 'Wallet' },
-    { id: 'instructor' as AppTab, icon: Map, label: 'Portal' },
+    ...(user.role === 'admin'
+      ? [{ id: 'instructor' as AppTab, icon: Map, label: 'Portal' }]
+      : []),
     { id: 'profile' as AppTab, icon: User, label: 'Profile' },
   ];
 

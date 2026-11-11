@@ -15,12 +15,13 @@ import { InstructorPortal } from '@/components/instructor/InstructorPortal';
 import { ProfileView } from '@/components/profile/ProfileView';
 
 export default function Home() {
-  const { currentTab, isAuthenticated } = useStore();
+  const { currentTab, isAuthenticated, initAuth } = useStore();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
-  }, []);
+    initAuth();
+  }, [initAuth]);
 
   if (!isClient) {
     return (

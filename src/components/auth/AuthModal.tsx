@@ -22,7 +22,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [password, setPassword] = useState('Stacked@2026!');
   const [name, setName] = useState('Alex Rivera');
   const [confirmPassword, setConfirmPassword] = useState('Stacked@2026!');
-  const [role, setRole] = useState<'student' | 'instructor'>('student');
+  const [role, setRole] = useState<'student' | 'admin'>('student');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -67,6 +67,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
 
     setIsLoading(true);
+    let resolvedRole: 'student' | 'admin' = role;
 
     try {
       if (isSupabaseConfigured()) {
@@ -95,16 +96,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           if (authError) throw authError;
 
-          // Fetch user profile from public.users table
+          // Fetch user profile from public.users table to check role
           if (data?.user) {
             const { data: profile } = await supabase
               .from('users')
-              .select('*')
+              .select('id, role, total_points, level')
               .eq('id', data.user.id)
               .single();
 
-            if (profile?.role) {
-              setRole(profile.role as 'student' | 'instructor');
+            if (profile?.role === 'admin' || profile?.role === 'student') {
+              resolvedRole = profile.role;
+              setRole(resolvedRole);
             }
           }
 
@@ -113,11 +115,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
 
       // Update client store state
-      login(email, role);
+      login(email, resolvedRole);
       onClose();
     } catch (err: any) {
       console.warn('Supabase auth notice:', err?.message);
-      // If user is just testing without database setup, allow fallback login
       if (err?.message?.includes('FetchError') || err?.message?.includes('placeholder')) {
         login(email, role);
         onClose();
@@ -129,7 +130,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleDemo = (demoRole: 'student' | 'instructor') => {
+  const handleDemo = (demoRole: 'student' | 'admin') => {
     demoLogin(demoRole);
     onClose();
   };
@@ -343,14 +344,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setRole('instructor')}
+                  onClick={() => setRole('admin')}
                   className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
-                    role === 'instructor'
-                      ? 'bg-amber-400/20 border-amber-400 text-amber-300'
+                    role === 'admin'
+                      ? 'bg-emerald-400/20 border-emerald-400 text-emerald-300'
                       : 'border-white/10 text-zinc-400 hover:border-white/20'
                   }`}
                 >
-                  👨‍🏫 Instructor / Educator
+                  🛡️ Admin / Educator
                 </button>
               </div>
             </div>
@@ -379,10 +380,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <span>👤 Alex (Student)</span>
             </button>
             <button
-              onClick={() => handleDemo('instructor')}
+              onClick={() => handleDemo('admin')}
               className="py-2 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs font-bold text-amber-300 transition-colors flex items-center justify-center gap-1.5"
             >
-              <span>🎓 Sarah (Instructor)</span>
+              <span>🛡️ Sarah (Admin)</span>
             </button>
           </div>
         </div>

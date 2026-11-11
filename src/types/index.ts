@@ -5,10 +5,11 @@ export interface UserProfile {
   name: string;
   username: string;
   email: string;
-  role: 'student' | 'instructor';
+  role: 'student' | 'admin' | 'instructor';
   level: number;
   levelTitle: string;
   points: number;
+  total_points?: number;
   nextLevelPoints: number;
   streak: number;
   savedThisMonth: number;

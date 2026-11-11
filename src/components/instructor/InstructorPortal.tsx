@@ -11,14 +11,16 @@ import {
   ArrowRight,
   Database,
   Cpu,
-  Check,
+  ShieldAlert,
+  AlertCircle,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { Lesson, QuizQuestion } from '@/types';
 import { GroqQuizQuestion } from '@/lib/groq';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 
 export const InstructorPortal: React.FC = () => {
-  const { addInstructorLesson, lessons, user } = useStore();
+  const { addInstructorLesson, lessons, user, switchRole, setCurrentTab } = useStore();
 
   const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState<{
@@ -28,13 +30,14 @@ export const InstructorPortal: React.FC = () => {
     duration: string;
   } | null>(null);
 
-  // Upload Progress State (0 to 100 over 3 seconds)
+  // Upload Progress State
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadComplete, setUploadComplete] = useState(false);
   const [uploadedVideoData, setUploadedVideoData] = useState<{
     id: string;
     video_url: string;
+    admin_id?: string;
   } | null>(null);
 
   // AI Quiz Generation State (Waiting for Groq API)
@@ -47,8 +50,38 @@ export const InstructorPortal: React.FC = () => {
   const [lessonCategory, setLessonCategory] = useState('Saving Strategies');
   const [isPublished, setIsPublished] = useState(false);
   const [backendFeedback, setBackendFeedback] = useState<string | null>(null);
+  const [uploadErrorMsg, setUploadErrorMsg] = useState<string | null>(null);
 
-  // Start upload to Supabase Storage & Database
+  // If user is not admin, show guard view
+  if (user.role !== 'admin') {
+    return (
+      <div className="max-w-2xl mx-auto p-8 rounded-3xl bg-[#161619] border border-amber-500/30 text-center space-y-4 my-12 animate-fade-in shadow-2xl">
+        <div className="w-16 h-16 rounded-3xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 mx-auto shadow-gold-glow">
+          <ShieldAlert className="w-8 h-8" />
+        </div>
+        <h2 className="text-2xl font-black text-white">Admin Access Required</h2>
+        <p className="text-xs text-zinc-400 max-w-md mx-auto leading-relaxed">
+          The Instructor Upload Portal and AI Quiz Generator are restricted to users with the <code className="text-amber-300 font-mono">admin</code> role by Supabase Row Level Security (RLS).
+        </p>
+        <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+          <button
+            onClick={() => switchRole('admin')}
+            className="px-6 py-2.5 rounded-xl bg-amber-400 text-black font-extrabold text-xs hover:bg-amber-300 active:scale-95 transition-all shadow-gold-glow"
+          >
+            Switch to Admin Role & Enter
+          </button>
+          <button
+            onClick={() => setCurrentTab('dashboard')}
+            className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-zinc-300 font-bold text-xs hover:bg-white/10 transition-colors"
+          >
+            Return to Student Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Upload Logic: Supabase Storage bucket 'lessons' + Database 'videos' table insert
   const startUpload = async (fileObj: File | null, fileName: string, fileSize: string) => {
     setSelectedFile({
       file: fileObj || undefined,
@@ -63,6 +96,7 @@ export const InstructorPortal: React.FC = () => {
     setGeneratedGroqQuestions(null);
     setIsPublished(false);
     setBackendFeedback(null);
+    setUploadErrorMsg(null);
 
     // 1. Run 3-second animated progress bar
     const intervalTime = 60; // 60ms * 50 = 3000ms
@@ -80,13 +114,66 @@ export const InstructorPortal: React.FC = () => {
       });
     }, intervalTime);
 
-    // 2. Call backend /api/upload-video to save to Supabase Storage ('lessons' bucket) & 'videos' table
+    // 2. Direct Supabase Storage & Database logic
     try {
+      if (isSupabaseConfigured() && fileObj) {
+        const fileExt = fileObj.name.split('.').pop() || 'mp4';
+        const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+        const storagePath = `lessons/${uniqueFileName}`;
+
+        // a) Upload file to Supabase public bucket 'lessons'
+        const { data: uploadData, error: storageErr } = await supabase.storage
+          .from('lessons')
+          .upload(storagePath, fileObj, {
+            contentType: fileObj.type || 'video/mp4',
+            cacheControl: '3600',
+            upsert: false,
+          });
+
+        if (storageErr) {
+          console.warn('Direct Supabase storage upload message:', storageErr.message);
+          // If bucket is not yet created in user's Supabase dashboard, report clear instructions
+          setUploadErrorMsg(
+            `Supabase Notice: ${storageErr.message}. Ensure the public 'lessons' bucket is created in your Supabase dashboard.`
+          );
+        }
+
+        // b) Retrieve public URL from Supabase Storage
+        const { data: urlData } = supabase.storage
+          .from('lessons')
+          .getPublicUrl(storagePath);
+
+        const publicVideoUrl = urlData.publicUrl;
+        const currentAdminId = user.id && !user.id.startsWith('usr_') ? user.id : null;
+
+        // c) Insert record into public.videos table
+        const { data: videoData, error: dbErr } = await supabase
+          .from('videos')
+          .insert({
+            title: lessonTitle,
+            video_url: publicVideoUrl,
+            admin_id: currentAdminId,
+            transcript: null,
+          })
+          .select()
+          .single();
+
+        if (dbErr) {
+          console.warn('Supabase videos table insert notice:', dbErr.message);
+        } else if (videoData) {
+          setUploadedVideoData(videoData);
+          setBackendFeedback(
+            `Successfully uploaded to Supabase Storage ('lessons') & saved to 'videos' table (ID: ${videoData.id}, Admin ID: ${currentAdminId || 'Current User'})`
+          );
+          return;
+        }
+      }
+
+      // Fallback: If no direct file or using simulation demo, call server-side route
       const formData = new FormData();
       if (fileObj) {
         formData.append('file', fileObj);
       } else {
-        // Create mock video binary blob for demonstration
         const mockBlob = new Blob(['mock video binary data'], { type: 'video/mp4' });
         formData.append('file', mockBlob, fileName);
       }
@@ -103,13 +190,12 @@ export const InstructorPortal: React.FC = () => {
       if (data.success && data.video) {
         setUploadedVideoData(data.video);
         setBackendFeedback(
-          data.storageConfigured
-            ? `Uploaded to Supabase 'lessons' bucket & saved to 'videos' table (ID: ${data.video.id})`
-            : `Saved to video repository (Public URL: ${data.publicUrl})`
+          `Video saved to repository (Public URL: ${data.publicUrl})`
         );
       }
     } catch (err: any) {
-      console.warn('Backend upload notice:', err.message);
+      console.warn('Video upload notice:', err.message);
+      setUploadErrorMsg(err.message || 'Video upload encountered a notice.');
     }
   };
 
@@ -135,7 +221,7 @@ export const InstructorPortal: React.FC = () => {
     startUpload(null, 'Emergency_Funds_HYSA_Masterclass_1080p.mp4', '184.2 MB');
   };
 
-  // Generate AI Quiz: calls /api/generate-quiz and WAITS for Groq API response before showing questions
+  // AI Quiz Generation: calls /api/generate-quiz and WAITS for Groq API response before showing questions
   const handleGenerateQuiz = async () => {
     setIsGeneratingQuiz(true);
     setAiStep(0);
@@ -158,7 +244,6 @@ export const InstructorPortal: React.FC = () => {
     }, 1200);
 
     try {
-      // Connect to Groq Whisper & Llama 3 API route
       const formData = new FormData();
       formData.append('videoId', uploadedVideoData?.id || `vid-${Date.now()}`);
       formData.append('title', lessonTitle);
@@ -167,7 +252,7 @@ export const InstructorPortal: React.FC = () => {
         formData.append('file', selectedFile.file);
       }
 
-      // STRICT API CALL: Wait for the Groq API to return the JSON
+      // AWAIT Groq API response before displaying
       const res = await fetch('/api/generate-quiz', {
         method: 'POST',
         body: formData,
@@ -179,7 +264,6 @@ export const InstructorPortal: React.FC = () => {
       if (data.success && Array.isArray(data.questions)) {
         setGeneratedGroqQuestions(data.questions);
 
-        // Map to internal quiz format
         const formatted: QuizQuestion[] = data.questions.map((q: GroqQuizQuestion, idx: number) => {
           const correctIdx = q.options.findIndex((opt) => opt === q.correctAnswer);
           return {
@@ -198,8 +282,8 @@ export const InstructorPortal: React.FC = () => {
         throw new Error(data.error || 'Failed to parse Groq quiz output');
       }
     } catch (err: any) {
-      console.warn('API error in quiz generation:', err.message);
-      // Fallback 3 questions if offline
+      console.warn('API notice in quiz generation:', err.message);
+      // Fallback 3 questions
       setGeneratedQuestions([
         {
           id: `fallback-q1-${Date.now()}`,
@@ -297,19 +381,19 @@ export const InstructorPortal: React.FC = () => {
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-            Free-tier architecture: Supabase Storage + Database, Groq Whisper transcription & Llama 3 quiz synthesis.
+            Role-Protected (Admin Only): Upload to Supabase Storage <code className="text-amber-300 font-mono">'lessons'</code>, insert into <code className="text-amber-300 font-mono">'videos'</code>, and synthesize AI quizzes via Groq.
           </p>
         </div>
 
-        {/* Backend Status Badges */}
+        {/* Status Badges */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
             <Database className="w-3.5 h-3.5" />
-            <span>Supabase: 'lessons' Bucket & RLS</span>
+            <span>Role: {user.role.toUpperCase()} (Authorized)</span>
           </span>
           <span className="flex items-center gap-1.5 text-[11px] font-bold text-amber-300 bg-amber-400/10 px-3 py-1.5 rounded-xl border border-amber-400/20">
             <Cpu className="w-3.5 h-3.5" />
-            <span>Groq: Whisper + Llama 3</span>
+            <span>Groq Llama 3 Pipeline</span>
           </span>
         </div>
       </div>
@@ -321,11 +405,18 @@ export const InstructorPortal: React.FC = () => {
         </div>
       )}
 
+      {uploadErrorMsg && (
+        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-2.5 text-xs text-amber-300 animate-fade-in">
+          <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+          <span>{uploadErrorMsg}</span>
+        </div>
+      )}
+
       {/* Upload Zone Card */}
       <div className="p-6 sm:p-8 rounded-3xl bg-[#141417] border border-white/[0.08] shadow-2xl space-y-6">
         <h2 className="text-base font-extrabold text-white flex items-center gap-2">
           <UploadCloud className="w-5 h-5 text-amber-400" />
-          <span>Step 1: Upload Video to Supabase Storage</span>
+          <span>Step 1: Upload Video to Supabase Storage ('lessons' bucket)</span>
         </h2>
 
         {/* Drag & Drop Box */}
@@ -360,7 +451,7 @@ export const InstructorPortal: React.FC = () => {
                 Drag and drop your video lesson here, or <span className="text-amber-400 underline">browse</span>
               </p>
               <p className="text-xs text-zinc-400 mt-1">
-                Uploads directly to Supabase public bucket <code className="text-amber-300 font-mono">'lessons'</code>
+                Uploads directly to public bucket <code className="text-amber-300 font-mono">'lessons'</code> with <code className="text-amber-300 font-mono">admin_id = {user.id || 'auth.uid()'}</code>
               </p>
             </div>
           </div>
@@ -368,7 +459,7 @@ export const InstructorPortal: React.FC = () => {
 
         {/* Quick Demo Upload Button */}
         <div className="flex items-center justify-between text-xs text-zinc-400 pt-1">
-          <span>Testing the end-to-end backend flow?</span>
+          <span>Testing the end-to-end admin upload flow?</span>
           <button
             onClick={handleSimulateDrop}
             className="text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1.5 transition-colors"

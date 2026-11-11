@@ -128,11 +128,11 @@ export const Header: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => demoLogin(user.role === 'student' ? 'instructor' : 'student')}
+                  onClick={() => demoLogin(user.role === 'student' ? 'admin' : 'student')}
                   className="w-full text-left px-3 py-2 text-xs text-amber-300 hover:bg-amber-400/10 flex items-center gap-2 transition-colors"
                 >
-                  <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                  Switch to {user.role === 'student' ? 'Instructor Portal' : 'Student Mode'}
+                  <span className={`w-2 h-2 rounded-full ${user.role === 'admin' ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+                  Switch to {user.role === 'student' ? 'Admin Role (Unlock Portal)' : 'Student Role (Gated)'}
                 </button>
 
                 <button

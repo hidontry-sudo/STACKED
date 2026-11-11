@@ -38,12 +38,16 @@ export const Sidebar: React.FC = () => {
       icon: PlayCircle,
       badge: '4 Modules',
     },
-    {
-      id: 'instructor' as AppTab,
-      label: 'Instructor Portal',
-      icon: UploadCloud,
-      badge: 'AI Powered',
-    },
+    ...(user.role === 'admin'
+      ? [
+          {
+            id: 'instructor' as AppTab,
+            label: 'Instructor Portal',
+            icon: UploadCloud,
+            badge: 'Admin',
+          },
+        ]
+      : []),
     {
       id: 'profile' as AppTab,
       label: 'Growth Path',
